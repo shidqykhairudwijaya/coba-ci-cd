@@ -1,0 +1,54 @@
+name: CI/CD Pipeline Demo
+
+on:
+  # 1. Jalankan CI saat ada Pull Request menuju branch main
+  pull_request:
+    branches: [ main ]
+  # 2. Jalankan CI + CD saat kode di-merge/push ke branch main
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # TAHAP 1: CONTINUOUS INTEGRATION (Testing Otomatis)
+  ci-test:
+    name: "CI: Cek Kualitas Kode"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil kode dari repository
+        uses: actions/checkout@v4
+
+      - name: Pastikan file index.html ada
+        run: test -f index.html
+
+      - name: Validasi elemen utama (Wajib ada tag H1)
+        run: grep -q "<h1>" index.html
+
+  # TAHAP 2: CONTINUOUS DEPLOYMENT (Hanya jalan di branch main setelah CI lulus)
+  cd-deploy:
+    name: "CD: Deploy ke Server Production"
+    needs: ci-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Ambil kode terbaru
+        uses: actions/checkout@v4
+
+      - name: Konfigurasi GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Bungkus file website (Upload Artifact)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy ke GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
